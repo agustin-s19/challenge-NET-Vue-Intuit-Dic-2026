@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using ConsultasPlan.Data;
 using ConsultasPlan.Models;
+using ConsultasPlan.Services.Interfaces;
 
 namespace ConsultasPlan.Controllers;
 
@@ -10,25 +10,24 @@ namespace ConsultasPlan.Controllers;
 public class AfiliadosController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly IAfiliadoService _afiliadoService;
 
-    public AfiliadosController(AppDbContext context)
+    public AfiliadosController(AppDbContext context, IAfiliadoService afiliadoService)
     {
         _context = context;
+        _afiliadoService = afiliadoService;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var afiliados = await _context.Afiliados.ToListAsync();
-        return Ok(afiliados);
+        return Ok(await _afiliadoService.GetAllAsync());
     }
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var afiliado = await _context.Afiliados.FindAsync(id);
-        if (afiliado == null) return NotFound();
-        return Ok(afiliado);
+        return Ok(await _afiliadoService.GetByIdAsync(id));
     }
 
     [HttpPost]
