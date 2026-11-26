@@ -12,4 +12,5 @@ public class Consulta
     public ModalidadConsulta Modalidad { get; set; }
     public DateTime FechaCreacion { get; set; }
     public string Motivo { get; set; } = string.Empty;
+
 }

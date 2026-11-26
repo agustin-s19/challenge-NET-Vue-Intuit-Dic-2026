@@ -23,7 +23,9 @@
           <td>{{ a.email }}</td>
           <td>{{ a.telefono }}</td>
           <td>{{ a.plan }}</td>
-          <td>{{ a.consultasUsadas }}</td>
+          <td :class="{ 'limite-alcanzado': a.consultasUsadas >= 6 }">
+            {{ a.consultasUsadas }} / 6
+          </td>
           <td>
             <span v-if="a.bloqueado" style="color: #d32f2f; font-weight: 600">Sí</span>
             <span v-else style="color: #388e3c">No</span>
@@ -66,5 +68,13 @@ export default {
       }
     }
   }
+  
 }
 </script>
+<style scoped>
+
+.limite-alcanzado {
+  color: #b3261e;
+  font-weight: 600;
+}
+</style>

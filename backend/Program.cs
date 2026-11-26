@@ -1,8 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using ConsultasPlan.Data;
+using ConsultasPlan.Middleware;
+using ConsultasPlan.Services;
+using ConsultasPlan.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ===== Registro de servicios (antes de Build) =====
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite("Data Source=consultas.db"));
 
@@ -17,6 +21,8 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddScoped<IConsultaService, ConsultaService>();
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -26,8 +32,9 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod();
     });
 });
-
+builder.Services.AddScoped<IAfiliadoService, AfiliadoService>();
 var app = builder.Build();
+
 
 using (var scope = app.Services.CreateScope())
 {
@@ -40,5 +47,7 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseCors();
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+
 app.MapControllers();
 app.Run();

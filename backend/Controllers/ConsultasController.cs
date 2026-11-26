@@ -2,6 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ConsultasPlan.Data;
 using ConsultasPlan.Models;
+using ConsultasPlan.Helpers;
+using ConsultasPlan.Exceptions;
+using ConsultasPlan.Services.Interfaces;
 
 namespace ConsultasPlan.Controllers;
 
@@ -10,10 +13,12 @@ namespace ConsultasPlan.Controllers;
 public class ConsultasController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly IConsultaService _consultaService;  
 
-    public ConsultasController(AppDbContext context)
+    public ConsultasController(AppDbContext context, IConsultaService consultaService)
     {
         _context = context;
+        _consultaService = consultaService;
     }
 
     [HttpGet]
@@ -40,39 +45,19 @@ public class ConsultasController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CrearConsulta([FromBody] Consulta consulta)
     {
-        var afiliado = await _context.Afiliados.FindAsync(consulta.AfiliadoId);
-        if (afiliado == null)
-            return NotFound(new { mensaje = "Afiliado no encontrado." });
-
-        if (afiliado.Bloqueado)
-            return BadRequest(new { mensaje = "El afiliado se encuentra bloqueado para agendar consultas." });
-
-        var profesionalExiste = await _context.Profesionales.AnyAsync(p => p.Id == consulta.ProfesionalId);
-        if (!profesionalExiste)
-            return NotFound(new { mensaje = "Profesional no encontrado." });
-
-        var consultaConflicto = await _context.Consultas.AnyAsync(c =>
-            c.ProfesionalId == consulta.ProfesionalId &&
-            c.FechaHora == consulta.FechaHora &&
-            c.Estado != EstadoConsulta.Cancelado);
-        if (consultaConflicto)
-            return BadRequest(new { mensaje = "El profesional ya tiene una consulta en ese horario." });
-
-        consulta.FechaCreacion = DateTime.UtcNow;
-        consulta.Estado = EstadoConsulta.Pendiente;
-        _context.Consultas.Add(consulta);
-        await _context.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetById), new { id = consulta.Id }, consulta);
+        var creada = await _consultaService.CrearAsync(consulta);
+        return CreatedAtAction(nameof(GetById), new { id = creada.Id }, creada);
     }
 
-    [HttpGet("cancelar/{id}")]
+    [HttpPost("cancelar/{id}")]
     public async Task<IActionResult> CancelarConsulta(int id)
     {
-        var consulta = await _context.Consultas.FindAsync(id);
-        if (consulta == null) return NotFound();
+        var consulta = await _context.Consultas.FindAsync(id)
+             ?? throw new NotFoundException($"No existe la consulta {id}.");
 
-        if (consulta.FechaHora - DateTime.Now < TimeSpan.FromHours(23))
-            return BadRequest(new { mensaje = "No se puede cancelar con menos de 24 horas de anticipación." });
+        if (consulta.FechaHora - DateTime.Now < TimeSpan.FromHours(24))
+            throw new BusinessRuleException(
+            "No se puede cancelar la consulta: solo se permite hasta 24 horas antes del turno.");
 
         consulta.Estado = EstadoConsulta.Cancelado;
         await _context.SaveChangesAsync();

@@ -4,6 +4,7 @@ backend/obj/
 backend/*.db
 backend/*.db-shm
 backend/*.db-wal
+.vs/
 
 # Node
 frontend/node_modules/
