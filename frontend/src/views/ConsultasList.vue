@@ -64,7 +64,14 @@ export default {
       }
     },
     formatFecha(fecha) {
-      return new Date(fecha).toLocaleString('es-AR')
+      return new Date(fecha).toLocaleString('es-AR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      })
     },
     async cancelar(id) {
       if (!confirm(`¿Desea cancelar la consulta ${id}?`)) return

@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace ConsultasPlan.Models;
 
 public class Afiliado
@@ -9,7 +11,10 @@ public class Afiliado
 
     public string Telefono { get; set; } = string.Empty;
     public string Plan { get; set; } = "Plan Integral";
+
+    [NotMapped]
     public int ConsultasUsadas { get; set; }
+
     public bool Bloqueado { get; set; }
     public DateTime? FechaBloqueo { get; set; }
     public DateTime createdAt { get; set; }
