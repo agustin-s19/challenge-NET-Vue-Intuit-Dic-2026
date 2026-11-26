@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ConsultasPlan.Data;
 using ConsultasPlan.Models;
+using ConsultasPlan.Helpers;
+using ConsultasPlan.Exceptions;
 
 namespace ConsultasPlan.Controllers;
 
@@ -65,14 +67,15 @@ public class ConsultasController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = consulta.Id }, consulta);
     }
 
-    [HttpGet("cancelar/{id}")]
+    [HttpPost("cancelar/{id}")]
     public async Task<IActionResult> CancelarConsulta(int id)
     {
-        var consulta = await _context.Consultas.FindAsync(id);
-        if (consulta == null) return NotFound();
+        var consulta = await _context.Consultas.FindAsync(id)
+             ?? throw new NotFoundException($"No existe la consulta {id}.");
 
-        if (consulta.FechaHora - DateTime.Now < TimeSpan.FromHours(23))
-            return BadRequest(new { mensaje = "No se puede cancelar con menos de 24 horas de anticipación." });
+        if (consulta.FechaHora - DateTime.Now < TimeSpan.FromHours(24))
+            throw new BusinessRuleException(
+            "No se puede cancelar la consulta: solo se permite hasta 24 horas antes del turno.");
 
         consulta.Estado = EstadoConsulta.Cancelado;
         await _context.SaveChangesAsync();

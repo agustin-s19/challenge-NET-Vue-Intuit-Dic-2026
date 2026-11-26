@@ -6,6 +6,7 @@ public class Afiliado
     public string NombreCompleto { get; set; } = string.Empty;
     public string DNI { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
+
     public string Telefono { get; set; } = string.Empty;
     public string Plan { get; set; } = "Plan Integral";
     public int ConsultasUsadas { get; set; }
