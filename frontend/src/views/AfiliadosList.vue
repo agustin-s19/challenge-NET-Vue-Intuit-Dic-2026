@@ -18,7 +18,9 @@
       <tbody>
         <tr v-for="a in afiliados" :key="a.id">
           <td>{{ a.id }}</td>
-          <td>{{ a.nombreCompleto }}</td>
+          <td>
+            <router-link :to="{ path: '/consultas', query: { afiliadoId: a.id } }">{{ a.nombreCompleto }}</router-link>
+          </td>
           <td>{{ a.dni }}</td>
           <td>{{ a.email }}</td>
           <td>{{ a.telefono }}</td>
