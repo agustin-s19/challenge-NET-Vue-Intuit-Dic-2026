@@ -28,7 +28,6 @@ namespace ConsultasPlan.Services
             return afiliados;
         }
 
-
         public async Task<Afiliado> GetByIdAsync(int id)
         {
             var afiliado = await _context.Afiliados.FindAsync(id)
@@ -37,6 +36,20 @@ namespace ConsultasPlan.Services
             var usadas = await ContarConsultasNutricionAsync(DateTime.Now.Year);
             afiliado.ConsultasUsadas = usadas.GetValueOrDefault(afiliado.Id);
 
+            return afiliado;
+        }
+
+        public async Task<Afiliado> DesbloquearAsync(int id)
+        {
+            var afiliado = await _context.Afiliados.FindAsync(id)
+                ?? throw new NotFoundException($"No existe el afiliado {id}.");
+
+            if (!afiliado.Bloqueado)
+                throw new BusinessRuleException("El afiliado no está bloqueado.");
+
+            // FechaBloqueo se conserva: marca desde cuándo se vuelven a contar inasistencias.
+            afiliado.Bloqueado = false;
+            await _context.SaveChangesAsync();
             return afiliado;
         }
 
@@ -51,20 +64,6 @@ namespace ConsultasPlan.Services
                 .GroupBy(c => c.AfiliadoId!.Value)
                 .Select(g => new { AfiliadoId = g.Key, Cantidad = g.Count() })
                 .ToDictionaryAsync(x => x.AfiliadoId, x => x.Cantidad);
-        }
-
-        public async Task<Afiliado> DesbloquearAsync(int id)
-        {
-            var afiliado = await _context.Afiliados.FindAsync(id)
-                ?? throw new NotFoundException($"No existe el afiliado {id}.");
-
-            if (!afiliado.Bloqueado)
-                throw new BusinessRuleException("El afiliado no está bloqueado.");
-
-            afiliado.Bloqueado = false;
-            afiliado.FechaBloqueo = null;
-            await _context.SaveChangesAsync();
-            return afiliado;
         }
     }
 }

@@ -1,6 +1,6 @@
 <template>
   <div>
-    <router-link to="/consultas" style="font-size:14px; color:#1a73e8">← Volver a consultas</router-link>
+<button class="btn-primary" style="font-size:14px" @click="$router.back()">Volver</button>
     <div v-if="consulta" class="card" style="margin-top: 20px; max-width: 560px">
       <h2>Consulta #{{ consulta.id }}</h2>
       <div class="detail-row"><span class="label">Afiliado</span><span>{{ consulta.afiliado?.nombreCompleto }}</span></div>
@@ -35,50 +35,97 @@
 <script>
 import { consultasApi } from '../services/api'
 
+function mensajeError(err) {
+  return err.response?.data?.message
+    || err.response?.data?.mensaje
+    || 'Ocurrió un error inesperado. Intente nuevamente.'
+}
+
 export default {
   name: 'ConsultaDetalle',
   data() {
     return {
       consulta: null,
       nuevoEstado: 'Pendiente',
-      estados: ['Pendiente', 'Confirmado', 'Cancelado', 'Atendido', 'Inasistencia']
+      estados: ['Pendiente', 'Confirmado', 'Cancelado', 'Atendido', 'Inasistencia'],
+      procesando: false
     }
   },
   async mounted() {
     try {
-      const res = await consultasApi.getById(this.$route.params.id)
-      this.consulta = res.data
-      this.nuevoEstado = this.consulta.estado
-    } catch {
-      alert('Error al procesar la solicitud')
+      await this.recargar()
+    } catch (err) {
+      alert(err.response?.status === 404 ? 'La consulta no existe.' : mensajeError(err))
     }
   },
   methods: {
     formatFecha(fecha) {
-      return new Date(fecha).toLocaleString('es-AR')
+      return new Date(fecha).toLocaleString('es-AR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      })
     },
-    async cambiarEstado() {
+
+    async recargar() {
+      const res = await consultasApi.getById(this.$route.params.id)
+      this.consulta = res.data
+      this.nuevoEstado = this.consulta.estado
+    },
+
+    async ejecutar(accion, mensajeOk, pregunta) {
+      if (pregunta && !confirm(pregunta)) return
+      if (this.procesando) return
+
+      this.procesando = true
       try {
-        const res = await consultasApi.actualizarEstado(this.consulta.id, { estado: this.nuevoEstado })
-        this.consulta = res.data
-      } catch {
-        alert('Error al procesar la solicitud')
+        await accion()
+        alert(mensajeOk)
+        await this.recargar()
+      } catch (err) {
+        alert(mensajeError(err))
+      } finally {
+        this.procesando = false
       }
     },
-    async registrarAtencion() {
-      try {
-        const res = await consultasApi.registrarAtencion(this.consulta.id)
-        this.consulta = res.data
-        this.nuevoEstado = this.consulta.estado
-      } catch {
-        alert('Error al procesar la solicitud')
+
+    cambiarEstado() {
+      if (this.nuevoEstado === this.consulta.estado) {
+        alert('La consulta ya está en ese estado.')
+        return
       }
+      return this.ejecutar(
+        () => consultasApi.actualizarEstado(this.consulta.id, { estado: this.nuevoEstado }),
+        `Estado actualizado a ${this.nuevoEstado}.`,
+        `¿Cambiar el estado a ${this.nuevoEstado}?`
+      )
     },
-    async cancelar() {
-      await consultasApi.cancelar(this.consulta.id)
+
+    registrarAtencion() {
+      return this.ejecutar(
+        () => consultasApi.registrarAtencion(this.consulta.id),
+        'Atención registrada.',
+        '¿Registrar la atención de esta consulta?'
+      )
     },
-    async marcarInasistencia() {
-      await consultasApi.marcarInasistencia(this.consulta.id)
+
+    cancelar() {
+      return this.ejecutar(
+        () => consultasApi.cancelar(this.consulta.id),
+        'Consulta cancelada.',
+        '¿Cancelar esta consulta?'
+      )
+    },
+
+    marcarInasistencia() {
+      return this.ejecutar(
+        () => consultasApi.marcarInasistencia(this.consulta.id),
+        'Inasistencia registrada.',
+        '¿Registrar inasistencia para esta consulta?'
+      )
     }
   }
 }
