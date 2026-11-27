@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ConsultasPlan.Data;
 using ConsultasPlan.Models;
-using ConsultasPlan.Helpers;
 using ConsultasPlan.Exceptions;
 using ConsultasPlan.Services.Interfaces;
 
@@ -13,7 +12,7 @@ namespace ConsultasPlan.Controllers;
 public class ConsultasController : ControllerBase
 {
     private readonly AppDbContext _context;
-    private readonly IConsultaService _consultaService;  
+    private readonly IConsultaService _consultaService;
 
     public ConsultasController(AppDbContext context, IConsultaService consultaService)
     {
@@ -37,8 +36,8 @@ public class ConsultasController : ControllerBase
         var consulta = await _context.Consultas
             .Include(c => c.Afiliado)
             .Include(c => c.Profesional)
-            .FirstOrDefaultAsync(c => c.Id == id);
-        if (consulta == null) return NotFound();
+            .FirstOrDefaultAsync(c => c.Id == id)
+            ?? throw new NotFoundException($"No existe la consulta {id}.");
         return Ok(consulta);
     }
 
@@ -52,16 +51,7 @@ public class ConsultasController : ControllerBase
     [HttpPost("cancelar/{id}")]
     public async Task<IActionResult> CancelarConsulta(int id)
     {
-        var consulta = await _context.Consultas.FindAsync(id)
-             ?? throw new NotFoundException($"No existe la consulta {id}.");
-
-        if (consulta.FechaHora - DateTime.Now < TimeSpan.FromHours(24))
-            throw new BusinessRuleException(
-            "No se puede cancelar la consulta: solo se permite hasta 24 horas antes del turno.");
-
-        consulta.Estado = EstadoConsulta.Cancelado;
-        await _context.SaveChangesAsync();
-        return Ok(consulta);
+        return Ok(await _consultaService.CancelarAsync(id));
     }
 
     [HttpPost("{id}/inasistencia")]
@@ -73,26 +63,13 @@ public class ConsultasController : ControllerBase
     [HttpPost("{id}/atencion")]
     public async Task<IActionResult> RegistrarAtencion(int id)
     {
-        var consulta = await _context.Consultas.FindAsync(id);
-        if (consulta == null) return NotFound();
-
-        if (!consulta.FechaHora.IsInCurrentYear())
-            return BadRequest(new { mensaje = "Solo se pueden registrar atenciones de consultas del año en curso." });
-
-        consulta.Estado = EstadoConsulta.Atendido;
-        await _context.SaveChangesAsync();
-        return Ok(consulta);
+        return Ok(await _consultaService.RegistrarAtencionAsync(id));
     }
 
     [HttpPut("{id}/estado")]
     public async Task<IActionResult> ActualizarEstado(int id, [FromBody] ActualizarEstadoRequest request)
     {
-        var consulta = await _context.Consultas.FindAsync(id);
-        if (consulta == null) return NotFound();
-
-        consulta.Estado = request.Estado;
-        await _context.SaveChangesAsync();
-        return Ok(consulta);
+        return Ok(await _consultaService.CambiarEstadoAsync(id, request.Estado));
     }
 }
 
