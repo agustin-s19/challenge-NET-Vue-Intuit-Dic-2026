@@ -1,7 +1,8 @@
-using Microsoft.AspNetCore.Mvc;
 using ConsultasPlan.Data;
 using ConsultasPlan.Models;
 using ConsultasPlan.Services.Interfaces;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace ConsultasPlan.Controllers;
 
@@ -19,9 +20,9 @@ public class AfiliadosController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] bool incluirInactivos = false)
     {
-        return Ok(await _afiliadoService.GetAllAsync());
+        return Ok(await _afiliadoService.GetAllAsync(incluirInactivos));
     }
 
     [HttpGet("{id}")]
@@ -43,8 +44,8 @@ public class AfiliadosController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] Afiliado afiliado)
     {
-        var existing = await _context.Afiliados.FindAsync(id);
-        if (existing == null) return NotFound();
+        var existing = await _context.Afiliados.FirstOrDefaultAsync(a => a.Id == id && a.isActive);
+        if (existing == null) return NotFound(new { message = $"No existe el afiliado {id}." });
 
         existing.NombreCompleto = afiliado.NombreCompleto;
         existing.DNI = afiliado.DNI;
@@ -58,11 +59,7 @@ public class AfiliadosController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var afiliado = await _context.Afiliados.FindAsync(id);
-        if (afiliado == null) return NotFound();
-
-        _context.Afiliados.Remove(afiliado);
-        await _context.SaveChangesAsync();
+        await _afiliadoService.EliminarAsync(id);
         return NoContent();
     }
 
@@ -70,5 +67,11 @@ public class AfiliadosController : ControllerBase
     public async Task<IActionResult> Desbloquear(int id)
     {
         return Ok(await _afiliadoService.DesbloquearAsync(id));
+    }
+
+    [HttpPost("{id}/reactivar")]
+    public async Task<IActionResult> Reactivar(int id)
+    {
+        return Ok(await _afiliadoService.ReactivarAsync(id));
     }
 }
