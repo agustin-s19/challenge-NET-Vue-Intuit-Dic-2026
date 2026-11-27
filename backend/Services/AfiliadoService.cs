@@ -58,6 +58,7 @@ namespace ConsultasPlan.Services
             return await _context.Consultas
                 .Where(c =>
                     c.Profesional!.Especialidad == EspecialidadNutricion &&
+                    c.Modalidad == ModalidadConsulta.Presencial &&
                     c.FechaHora.Year == anio &&
                     c.Estado != EstadoConsulta.Cancelado &&
                     c.AfiliadoId != null)

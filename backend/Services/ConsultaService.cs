@@ -1,4 +1,5 @@
-﻿using ConsultasPlan.Data;
+﻿using System.Globalization;
+using ConsultasPlan.Data;
 using ConsultasPlan.Exceptions;
 using ConsultasPlan.Models;
 using ConsultasPlan.Services.Interfaces;
@@ -41,8 +42,11 @@ namespace ConsultasPlan.Services
             if (consultaConflicto)
                 throw new BusinessRuleException("El profesional ya tiene una consulta en ese horario.");
 
-            if (profesional.Especialidad == EspecialidadNutricion)
-                await ValidarLimiteNutricionAsync(afiliado.Id, consulta.FechaHora.Year);
+            if (profesional.Especialidad == EspecialidadNutricion &&
+                consulta.Modalidad == ModalidadConsulta.Presencial)
+            {
+                await ValidarCupoNutricionAsync(afiliado.Id, consulta.FechaHora);
+            }
 
             consulta.FechaCreacion = DateTime.UtcNow;
             consulta.Estado = EstadoConsulta.Pendiente;
@@ -86,8 +90,6 @@ namespace ConsultasPlan.Services
 
             if (vence.HasValue && vence.Value <= DateTime.Now)
             {
-                // Bloqueo vencido: se libera automáticamente.
-                // FechaBloqueo se conserva como referencia del último bloqueo.
                 afiliado.Bloqueado = false;
                 return;
             }
@@ -119,17 +121,28 @@ namespace ConsultasPlan.Services
             }
         }
 
-        private async Task ValidarLimiteNutricionAsync(int afiliadoId, int anio)
+        private async Task ValidarCupoNutricionAsync(int afiliadoId, DateTime fecha)
         {
-            var usadas = await _context.Consultas.CountAsync(c =>
-                c.AfiliadoId == afiliadoId &&
-                c.Profesional!.Especialidad == EspecialidadNutricion &&
-                c.FechaHora.Year == anio &&
-                c.Estado != EstadoConsulta.Cancelado);
+            var fechasDelAnio = await _context.Consultas
+                .Where(c =>
+                    c.AfiliadoId == afiliadoId &&
+                    c.Profesional!.Especialidad == EspecialidadNutricion &&
+                    c.Modalidad == ModalidadConsulta.Presencial &&
+                    c.FechaHora.Year == fecha.Year &&
+                    c.Estado != EstadoConsulta.Cancelado)
+                .Select(c => c.FechaHora)
+                .ToListAsync();
 
-            if (usadas >= LimiteConsultasNutricionAnual)
+            if (fechasDelAnio.Count >= LimiteConsultasNutricionAnual)
                 throw new BusinessRuleException(
-                    $"El afiliado ya alcanzó el límite de {LimiteConsultasNutricionAnual} consultas de nutrición en {anio}.");
+                    $"El afiliado ya usó las {LimiteConsultasNutricionAnual} consultas presenciales de nutrición de {fecha.Year}.");
+
+            if (fechasDelAnio.Any(f => f.Month == fecha.Month))
+            {
+                var mes = fecha.ToString("MMMM yyyy", new CultureInfo("es-AR"));
+                throw new BusinessRuleException(
+                    $"El afiliado ya tiene una consulta presencial de nutrición en {mes}. El plan permite una por mes.");
+            }
         }
     }
 }
