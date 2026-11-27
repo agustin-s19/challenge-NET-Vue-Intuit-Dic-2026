@@ -17,7 +17,8 @@ export const afiliadosApi = {
   getById: (id)        => axios.get(`${BASE_URL}/afiliados/${id}`),
   create:  (data)      => axios.post(`${BASE_URL}/afiliados`, data),
   update:  (id, data)  => axios.put(`${BASE_URL}/afiliados/${id}`, data),
-  delete:  (id)        => axios.delete(`${BASE_URL}/afiliados/${id}`)
+  delete:  (id)        => axios.delete(`${BASE_URL}/afiliados/${id}`),
+  unlock: (id) => axios.post(`${BASE_URL}/afiliados/${id}/desbloquear`)
 }
 
 export const profesionalesApi = {

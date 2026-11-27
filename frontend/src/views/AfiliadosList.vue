@@ -31,7 +31,10 @@
             <span v-else style="color: #388e3c">No</span>
           </td>
           <td>
-            <button class="btn-danger" @click="eliminar(a.id)">Eliminar</button>
+            <div class="acciones">
+              <button v-if="a.bloqueado" @click="desbloquear(a)">Desbloquear</button>
+              <button class="btn-danger" @click="eliminar(a.id)">Eliminar</button>
+            </div>
           </td>
         </tr>
       </tbody>
@@ -59,6 +62,16 @@ export default {
     }
   },
   methods: {
+      async desbloquear(afiliado) {
+      if (!confirm(`¿Desbloquear a ${afiliado.nombreCompleto}?`)) return
+      try {
+        await afiliadosApi.unlock(afiliado.id)
+        alert(`${afiliado.nombreCompleto} fue desbloqueado.`)
+        await this.cargarAfiliados()
+      } catch (err) {
+        alert(mensajeError(err))
+      }
+    },
     async eliminar(id) {
       try {
         await afiliadosApi.delete(id)
@@ -76,5 +89,10 @@ export default {
 .limite-alcanzado {
   color: #b3261e;
   font-weight: 600;
+}
+.acciones {
+  display: flex;
+  gap: 8px;
+  white-space: nowrap;
 }
 </style>
