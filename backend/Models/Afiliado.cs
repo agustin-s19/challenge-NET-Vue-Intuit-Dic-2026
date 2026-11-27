@@ -18,5 +18,7 @@ public class Afiliado
     public bool Bloqueado { get; set; }
     public DateTime? FechaBloqueo { get; set; }
     public DateTime createdAt { get; set; }
-    public bool isActive { get; set; }
+    public bool isActive { get; set; } = true;
+
+
 }

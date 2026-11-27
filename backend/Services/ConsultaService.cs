@@ -22,13 +22,15 @@ namespace ConsultasPlan.Services
             _context = context;
         }
 
+        // ===== Alta =====
+
         public async Task<Consulta> CrearAsync(Consulta consulta)
         {
             if (consulta.FechaHora <= DateTime.Now)
                 throw new BusinessRuleException("No se puede agendar una consulta en una fecha u hora pasada.");
 
-            var afiliado = await _context.Afiliados.FindAsync(consulta.AfiliadoId)
-                ?? throw new NotFoundException("Afiliado no encontrado.");
+            var afiliado = await _context.Afiliados.FirstOrDefaultAsync(a => a.Id == consulta.AfiliadoId && a.isActive)
+                ?? throw new NotFoundException("Afiliado no encontrado o dado de baja.");
 
             ValidarBloqueo(afiliado);
 
@@ -55,16 +57,52 @@ namespace ConsultasPlan.Services
             return consulta;
         }
 
+        // ===== Cambios de estado =====
+
+        public async Task<Consulta> ConfirmarAsync(int id)
+        {
+            var consulta = await ObtenerConsultaAsync(id);
+            consulta.ValidarTransicion(EstadoConsulta.Confirmado);
+
+            if (consulta.FechaHora <= DateTime.Now)
+                throw new BusinessRuleException("No se puede confirmar una consulta que ya pasó.");
+
+            consulta.Estado = EstadoConsulta.Confirmado;
+            await _context.SaveChangesAsync();
+            return consulta;
+        }
+
+        public async Task<Consulta> CancelarAsync(int id)
+        {
+            var consulta = await ObtenerConsultaAsync(id);
+            consulta.ValidarTransicion(EstadoConsulta.Cancelado);
+
+            if ((consulta.FechaHora - DateTime.Now).TotalHours < HorasMinimasCancelacion)
+                throw new BusinessRuleException(
+                    $"No se puede cancelar la consulta: solo se permite hasta {HorasMinimasCancelacion} horas antes del turno.");
+
+            consulta.Estado = EstadoConsulta.Cancelado;
+            await _context.SaveChangesAsync();
+            return consulta;
+        }
+
+        public async Task<Consulta> RegistrarAtencionAsync(int id)
+        {
+            var consulta = await ObtenerConsultaAsync(id);
+            consulta.ValidarTransicion(EstadoConsulta.Atendido);
+
+            if (consulta.FechaHora > DateTime.Now)
+                throw new BusinessRuleException("No se puede registrar la atención de una consulta que todavía no ocurrió.");
+
+            consulta.Estado = EstadoConsulta.Atendido;
+            await _context.SaveChangesAsync();
+            return consulta;
+        }
+
         public async Task<Consulta> MarcarInasistenciaAsync(int id)
         {
-            var consulta = await _context.Consultas
-                .Include(c => c.Afiliado)
-                .FirstOrDefaultAsync(c => c.Id == id)
-                ?? throw new NotFoundException($"No existe la consulta {id}.");
-
-            if (consulta.Estado != EstadoConsulta.Pendiente && consulta.Estado != EstadoConsulta.Confirmado)
-                throw new BusinessRuleException(
-                    $"No se puede marcar inasistencia en una consulta en estado {consulta.Estado}.");
+            var consulta = await ObtenerConsultaAsync(id);
+            consulta.ValidarTransicion(EstadoConsulta.Inasistencia);
 
             if (consulta.FechaHora > DateTime.Now)
                 throw new BusinessRuleException("No se puede registrar una inasistencia sobre una consulta futura.");
@@ -80,7 +118,30 @@ namespace ConsultasPlan.Services
             return consulta;
         }
 
-        // ===== Reglas privadas =====
+        // Punto de entrada genérico (select "Cambiar estado"):
+        // delega en la acción específica para que se apliquen las mismas reglas.
+        public Task<Consulta> CambiarEstadoAsync(int id, EstadoConsulta nuevo)
+        {
+            return nuevo switch
+            {
+                EstadoConsulta.Confirmado => ConfirmarAsync(id),
+                EstadoConsulta.Cancelado => CancelarAsync(id),
+                EstadoConsulta.Atendido => RegistrarAtencionAsync(id),
+                EstadoConsulta.Inasistencia => MarcarInasistenciaAsync(id),
+                _ => throw new BusinessRuleException($"No se puede volver una consulta a estado {nuevo}.")
+            };
+        }
+
+        // ===== Privados =====
+
+        private async Task<Consulta> ObtenerConsultaAsync(int id)
+        {
+            return await _context.Consultas
+                .Include(c => c.Afiliado)
+                .Include(c => c.Profesional)
+                .FirstOrDefaultAsync(c => c.Id == id)
+                ?? throw new NotFoundException($"No existe la consulta {id}.");
+        }
 
         private void ValidarBloqueo(Afiliado afiliado)
         {

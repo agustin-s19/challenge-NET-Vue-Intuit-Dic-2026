@@ -17,9 +17,12 @@ namespace ConsultasPlan.Services
             _context = context;
         }
 
-        public async Task<List<Afiliado>> GetAllAsync()
+        public async Task<List<Afiliado>> GetAllAsync(bool incluirInactivos = false)
         {
-            var afiliados = await _context.Afiliados.ToListAsync();
+            var afiliados = await _context.Afiliados
+                .Where(a => incluirInactivos || a.isActive)
+                .ToListAsync();
+
             var usadas = await ContarConsultasNutricionAsync(DateTime.Now.Year);
 
             foreach (var a in afiliados)
@@ -30,8 +33,7 @@ namespace ConsultasPlan.Services
 
         public async Task<Afiliado> GetByIdAsync(int id)
         {
-            var afiliado = await _context.Afiliados.FindAsync(id)
-                ?? throw new NotFoundException($"No existe el afiliado {id}.");
+            var afiliado = await ObtenerActivoAsync(id);
 
             var usadas = await ContarConsultasNutricionAsync(DateTime.Now.Year);
             afiliado.ConsultasUsadas = usadas.GetValueOrDefault(afiliado.Id);
@@ -41,8 +43,7 @@ namespace ConsultasPlan.Services
 
         public async Task<Afiliado> DesbloquearAsync(int id)
         {
-            var afiliado = await _context.Afiliados.FindAsync(id)
-                ?? throw new NotFoundException($"No existe el afiliado {id}.");
+            var afiliado = await ObtenerActivoAsync(id);
 
             if (!afiliado.Bloqueado)
                 throw new BusinessRuleException("El afiliado no está bloqueado.");
@@ -51,6 +52,42 @@ namespace ConsultasPlan.Services
             afiliado.Bloqueado = false;
             await _context.SaveChangesAsync();
             return afiliado;
+        }
+
+        public async Task EliminarAsync(int id)
+        {
+            var afiliado = await ObtenerActivoAsync(id);
+
+            var tieneTurnosFuturos = await _context.Consultas.AnyAsync(c =>
+                c.AfiliadoId == id &&
+                c.FechaHora > DateTime.Now &&
+                (c.Estado == EstadoConsulta.Pendiente || c.Estado == EstadoConsulta.Confirmado));
+
+            if (tieneTurnosFuturos)
+                throw new BusinessRuleException(
+                    "El afiliado tiene turnos pendientes o confirmados. Cancelalos antes de darlo de baja.");
+
+            // Baja lógica: se conserva el registro para no perder el historial de consultas.
+            afiliado.isActive = false;
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<Afiliado> ReactivarAsync(int id)
+        {
+            var afiliado = await _context.Afiliados.FindAsync(id)
+                ?? throw new NotFoundException($"No existe el afiliado {id}.");
+
+            if (afiliado.isActive)
+                throw new BusinessRuleException("El afiliado ya está activo.");
+
+            afiliado.isActive = true;
+            await _context.SaveChangesAsync();
+            return afiliado;
+        }
+        private async Task<Afiliado> ObtenerActivoAsync(int id)
+        {
+            return await _context.Afiliados.FirstOrDefaultAsync(a => a.Id == id && a.isActive)
+                ?? throw new NotFoundException($"No existe el afiliado {id}.");
         }
 
         private async Task<Dictionary<int, int>> ContarConsultasNutricionAsync(int anio)

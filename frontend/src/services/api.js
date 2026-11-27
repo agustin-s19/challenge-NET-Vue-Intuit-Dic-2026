@@ -13,12 +13,13 @@ export const consultasApi = {
 }
 
 export const afiliadosApi = {
-  getAll:  ()          => axios.get(`${BASE_URL}/afiliados`),
+  getAll: (incluirInactivos = false) => axios.get(`${BASE_URL}/afiliados`, { params: { incluirInactivos } }),
   getById: (id)        => axios.get(`${BASE_URL}/afiliados/${id}`),
   create:  (data)      => axios.post(`${BASE_URL}/afiliados`, data),
   update:  (id, data)  => axios.put(`${BASE_URL}/afiliados/${id}`, data),
   delete:  (id)        => axios.delete(`${BASE_URL}/afiliados/${id}`),
-  unlock: (id) => axios.post(`${BASE_URL}/afiliados/${id}/desbloquear`)
+  unlock: (id) => axios.post(`${BASE_URL}/afiliados/${id}/desbloquear`),
+  reactivate: (id) => axios.post(`${BASE_URL}/afiliados/${id}/reactivar`)
 }
 
 export const profesionalesApi = {
