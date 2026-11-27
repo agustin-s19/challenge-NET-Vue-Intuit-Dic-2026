@@ -27,8 +27,8 @@ namespace ConsultasPlan.Services
             if (consulta.FechaHora <= DateTime.Now)
                 throw new BusinessRuleException("No se puede agendar una consulta en una fecha u hora pasada.");
 
-            var afiliado = await _context.Afiliados.FindAsync(consulta.AfiliadoId)
-                ?? throw new NotFoundException("Afiliado no encontrado.");
+            var afiliado = await _context.Afiliados.FirstOrDefaultAsync(a => a.Id == consulta.AfiliadoId && a.isActive)
+            ?? throw new NotFoundException("Afiliado no encontrado o dado de baja.");
 
             ValidarBloqueo(afiliado);
 
