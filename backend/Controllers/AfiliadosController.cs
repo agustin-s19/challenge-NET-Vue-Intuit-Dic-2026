@@ -65,4 +65,10 @@ public class AfiliadosController : ControllerBase
         await _context.SaveChangesAsync();
         return NoContent();
     }
+
+    [HttpPost("{id}/desbloquear")]
+    public async Task<IActionResult> Desbloquear(int id)
+    {
+        return Ok(await _afiliadoService.DesbloquearAsync(id));
+    }
 }
