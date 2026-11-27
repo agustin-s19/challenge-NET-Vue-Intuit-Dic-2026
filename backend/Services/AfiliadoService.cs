@@ -39,11 +39,26 @@ namespace ConsultasPlan.Services
             return afiliado;
         }
 
+        public async Task<Afiliado> DesbloquearAsync(int id)
+        {
+            var afiliado = await _context.Afiliados.FindAsync(id)
+                ?? throw new NotFoundException($"No existe el afiliado {id}.");
+
+            if (!afiliado.Bloqueado)
+                throw new BusinessRuleException("El afiliado no está bloqueado.");
+
+            // FechaBloqueo se conserva: marca desde cuándo se vuelven a contar inasistencias.
+            afiliado.Bloqueado = false;
+            await _context.SaveChangesAsync();
+            return afiliado;
+        }
+
         private async Task<Dictionary<int, int>> ContarConsultasNutricionAsync(int anio)
         {
             return await _context.Consultas
                 .Where(c =>
                     c.Profesional!.Especialidad == EspecialidadNutricion &&
+                    c.Modalidad == ModalidadConsulta.Presencial &&
                     c.FechaHora.Year == anio &&
                     c.Estado != EstadoConsulta.Cancelado &&
                     c.AfiliadoId != null)

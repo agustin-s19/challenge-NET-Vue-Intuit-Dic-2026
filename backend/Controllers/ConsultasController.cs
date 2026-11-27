@@ -67,15 +67,7 @@ public class ConsultasController : ControllerBase
     [HttpPost("{id}/inasistencia")]
     public async Task<IActionResult> MarcarInasistencia(int id)
     {
-        var consulta = await _context.Consultas.FindAsync(id);
-        if (consulta == null) return NotFound();
-
-        if (consulta.FechaHora > DateTime.Now)
-            return BadRequest(new { mensaje = "No se puede registrar una inasistencia sobre una consulta futura." });
-
-        consulta.Estado = EstadoConsulta.Inasistencia;
-        await _context.SaveChangesAsync();
-        return Ok(consulta);
+        return Ok(await _consultaService.MarcarInasistenciaAsync(id));
     }
 
     [HttpPost("{id}/atencion")]

@@ -5,5 +5,7 @@ namespace ConsultasPlan.Services.Interfaces
     public interface IConsultaService
     {
         Task<Consulta> CrearAsync(Consulta consulta);
+
+        Task<Consulta> MarcarInasistenciaAsync(int id);
     }
 }
